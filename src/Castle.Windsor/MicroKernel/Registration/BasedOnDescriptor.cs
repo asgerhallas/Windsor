@@ -17,6 +17,7 @@ namespace Castle.MicroKernel.Registration
 	using System;
 	using System.Collections.Generic;
 	using System.ComponentModel;
+	using System.Linq;
 
 	using Castle.Core;
 	using Castle.MicroKernel.Lifestyle.Scoped;
@@ -26,7 +27,7 @@ namespace Castle.MicroKernel.Registration
 	/// </summary>
 	public class BasedOnDescriptor : IRegistration
 	{
-		private readonly Type basedOn;
+		private readonly List<Type> basedOn;
 		private Action<ComponentRegistration> configuration;
 		private readonly FromDescriptor from;
 		private readonly ServiceDescriptor service;
@@ -38,7 +39,7 @@ namespace Castle.MicroKernel.Registration
 		/// </summary>
 		internal BasedOnDescriptor(Type basedOn, FromDescriptor from, Predicate<Type> additionalFilters)
 		{
-			this.basedOn = basedOn;
+			this.basedOn = new List<Type> { basedOn };
 			this.from = from;
 			service = new ServiceDescriptor(this);
 			If(additionalFilters);
@@ -82,6 +83,17 @@ namespace Castle.MicroKernel.Registration
 		public BasedOnDescriptor BasedOn(Type basedOn)
 		{
 			return from.BasedOn(basedOn);
+		}
+
+		/// <summary>
+		///   Returns the descriptor for accepting a new type.
+		/// </summary>
+		/// <param name = "basedOn">The base type.</param>
+		/// <returns>The descriptor for the type.</returns>
+		public BasedOnDescriptor OrBasedOn(Type basedOn)
+		{
+		    this.basedOn.Add(basedOn);
+		    return this;
 		}
 
 		/// <summary>
@@ -435,21 +447,27 @@ namespace Castle.MicroKernel.Registration
 
 		protected bool IsBasedOn(Type type, out Type[] baseTypes)
 		{
-			if (basedOn.IsAssignableFrom(type))
-			{
-				baseTypes = new[] { basedOn };
-				return true;
-			}
-			if (basedOn.IsGenericTypeDefinition)
-			{
-				if (basedOn.IsInterface)
-				{
-					return IsBasedOnGenericInterface(type, out baseTypes);
-				}
-				return IsBasedOnGenericClass(type, out baseTypes);
-			}
-			baseTypes = new[] { basedOn };
-			return false;
+		    var actuallyBasedOn = new List<Type>();
+            foreach (var based in basedOn)
+		    {
+                if (based.IsAssignableFrom(type))
+			    {
+                    actuallyBasedOn.Add(based);
+			    }
+			    else if (based.IsGenericTypeDefinition)
+			    {
+				    if (based.IsInterface)
+				    {
+					    if (IsBasedOnGenericInterface(type, based, out baseTypes))
+                            actuallyBasedOn.AddRange(baseTypes);
+				    }
+				    
+                    if (IsBasedOnGenericClass(type, based, out baseTypes))
+                        actuallyBasedOn.AddRange(baseTypes);
+			    }
+		    }
+		    baseTypes = actuallyBasedOn.ToArray();
+		    return baseTypes.Length > 0;
 		}
 
 		internal bool TryRegister(Type type, IKernel kernel)
@@ -485,12 +503,12 @@ namespace Castle.MicroKernel.Registration
 			return true;
 		}
 
-		private bool IsBasedOnGenericClass(Type type, out Type[] baseTypes)
+		private static bool IsBasedOnGenericClass(Type type, Type based, out Type[] baseTypes)
 		{
 			while (type != null)
 			{
 				if (type.IsGenericType &&
-				    type.GetGenericTypeDefinition() == basedOn)
+				    type.GetGenericTypeDefinition() == based)
 				{
 					baseTypes = new[] { type };
 					return true;
@@ -502,13 +520,13 @@ namespace Castle.MicroKernel.Registration
 			return false;
 		}
 
-		private bool IsBasedOnGenericInterface(Type type, out Type[] baseTypes)
+		private static bool IsBasedOnGenericInterface(Type type, Type based, out Type[] baseTypes)
 		{
 			var types = new List<Type>(4);
 			foreach (var @interface in type.GetInterfaces())
 			{
 				if (@interface.IsGenericType &&
-				    @interface.GetGenericTypeDefinition() == basedOn)
+				    @interface.GetGenericTypeDefinition() == based)
 				{
 					if (@interface.ReflectedType == null &&
 					    @interface.ContainsGenericParameters)

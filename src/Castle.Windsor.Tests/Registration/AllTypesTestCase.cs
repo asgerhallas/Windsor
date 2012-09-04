@@ -44,6 +44,28 @@ namespace CastleTests.Registration
 			Assert.AreNotEqual(0, handlers.Length);
 		}
 
+        [Test]
+		public void RegisterAssemblyTypes_MultipleBasedOn_RegisteredInContainer()
+		{
+			Kernel.Register(AllTypes
+			                	.FromThisAssembly()
+			                	.BasedOn(typeof(ICommon))
+                                .OrBasedOn(typeof(ICommon2))
+				);
+
+			var handlers = Kernel.GetHandlers(typeof(ICommon));
+			Assert.AreEqual(0, handlers.Length);
+
+            handlers = Kernel.GetHandlers(typeof(ICommon2));
+			Assert.AreEqual(0, handlers.Length);
+
+			handlers = Kernel.GetAssignableHandlers(typeof(ICommon));
+			Assert.AreNotEqual(0, handlers.Length);
+        
+            handlers = Kernel.GetAssignableHandlers(typeof(ICommon2));
+            Assert.AreNotEqual(0, handlers.Length);
+        }
+
 		[Test]
 		public void RegisterAssemblyTypesFromThisAssembly_BasedOn_RegisteredInContainer()
 		{
