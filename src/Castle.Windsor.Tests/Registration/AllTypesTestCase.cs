@@ -19,6 +19,7 @@ namespace CastleTests.Registration
 	using System.Reflection;
 
 	using Castle.Core;
+	using Castle.MicroKernel;
 	using Castle.MicroKernel.Registration;
 	using Castle.MicroKernel.Tests.ClassComponents;
 
@@ -43,28 +44,6 @@ namespace CastleTests.Registration
 			handlers = Kernel.GetAssignableHandlers(typeof(ICommon));
 			Assert.AreNotEqual(0, handlers.Length);
 		}
-
-        [Test]
-		public void RegisterAssemblyTypes_MultipleBasedOn_RegisteredInContainer()
-		{
-			Kernel.Register(AllTypes
-			                	.FromThisAssembly()
-			                	.BasedOn(typeof(ICommon))
-                                .OrBasedOn(typeof(ICommon2))
-				);
-
-			var handlers = Kernel.GetHandlers(typeof(ICommon));
-			Assert.AreEqual(0, handlers.Length);
-
-            handlers = Kernel.GetHandlers(typeof(ICommon2));
-			Assert.AreEqual(0, handlers.Length);
-
-			handlers = Kernel.GetAssignableHandlers(typeof(ICommon));
-			Assert.AreNotEqual(0, handlers.Length);
-        
-            handlers = Kernel.GetAssignableHandlers(typeof(ICommon2));
-            Assert.AreNotEqual(0, handlers.Length);
-        }
 
 		[Test]
 		public void RegisterAssemblyTypesFromThisAssembly_BasedOn_RegisteredInContainer()
@@ -93,6 +72,7 @@ namespace CastleTests.Registration
 			Assert.AreNotEqual(0, handlers.Length);
 		}
 #endif
+
 
 		[Test]
 		public void RegisterAssemblyTypes_NoService_RegisteredInContainer()
@@ -503,5 +483,68 @@ namespace CastleTests.Registration
 			                	                    select type));
 			Assert.IsNotNull(Kernel.Resolve<ITask<object>>());
 		}
-	}
+
+        [Test]
+        public void RegisterAssemblyTypes_MultipleBasedOn_RegisteredInContainer()
+        {
+            Kernel.Register(AllTypes
+                                .FromThisAssembly()
+                                .BasedOn(typeof(ICommon))
+                                .OrBasedOn(typeof(ICommon2))
+                );
+
+            var handlers = Kernel.GetHandlers(typeof(CommonImpl1));
+            Assert.AreEqual(1, handlers.Length);
+
+            handlers = Kernel.GetHandlers(typeof(Common2Impl));
+            Assert.AreEqual(1, handlers.Length);
+
+            handlers = Kernel.GetHandlers(typeof(TwoInterfacesImpl));
+            Assert.AreEqual(1, handlers.Length);
+        }
+
+        [Test]
+        public void RegisterAssemblyTypes_MultipleBasedOnWithServiceBase_RegisteredInContainer()
+        {
+            Kernel.Register(AllTypes
+                                .FromThisAssembly()
+                                .BasedOn(typeof(ICommon))
+                                .OrBasedOn(typeof(ICommon2))
+                                .WithServiceBase()
+                );
+
+            var handlers = Kernel.GetHandlers(typeof(ICommon));
+            Assert.AreNotEqual(0, handlers.Length);
+
+            handlers = Kernel.GetHandlers(typeof(ICommon2));
+            Assert.AreNotEqual(0, handlers.Length);
+        }
+
+        [Test]
+        public void RegisterGenericTypes_MultipleBasedOnWithGenericDefinition_RegisteredInContainer()
+        {
+            Kernel.Register(AllTypes
+                                .FromThisAssembly()
+                                .BasedOn(typeof(IValidator<>))
+                                .OrBasedOn(typeof(IRepository<>))
+                                .WithService.Base()
+                );
+
+            var handler = Kernel.GetHandlers(typeof(IValidator<ICustomer>)).Single(x => x.ComponentModel.Implementation == typeof(CustomerValidatorAndRepository));
+            var services = handler.ComponentModel.Services.ToList();
+            Assert.Contains(typeof(IRepository<ICustomer>), services);
+        }
+
+        [Test]
+        public void RegisterGenericTypes_MultipleBasedOnWithTheSameTypesTwice_RegisteredInContainer()
+        {
+            Kernel.Register(AllTypes
+                                .FromThisAssembly()
+                                .BasedOn(typeof(IValidator<>))
+                                .OrBasedOn(typeof(IValidator<>))
+                                .WithService.Base()
+                );
+
+        }
+    }
 }

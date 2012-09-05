@@ -27,7 +27,7 @@ namespace Castle.MicroKernel.Registration
 	/// </summary>
 	public class BasedOnDescriptor : IRegistration
 	{
-		private readonly List<Type> basedOn;
+		private readonly List<Type> bases;
 		private Action<ComponentRegistration> configuration;
 		private readonly FromDescriptor from;
 		private readonly ServiceDescriptor service;
@@ -39,7 +39,7 @@ namespace Castle.MicroKernel.Registration
 		/// </summary>
 		internal BasedOnDescriptor(Type basedOn, FromDescriptor from, Predicate<Type> additionalFilters)
 		{
-			this.basedOn = new List<Type> { basedOn };
+			this.bases = new List<Type> { basedOn };
 			this.from = from;
 			service = new ServiceDescriptor(this);
 			If(additionalFilters);
@@ -92,7 +92,7 @@ namespace Castle.MicroKernel.Registration
 		/// <returns>The descriptor for the type.</returns>
 		public BasedOnDescriptor OrBasedOn(Type basedOn)
 		{
-		    this.basedOn.Add(basedOn);
+		    this.bases.Add(basedOn);
 		    return this;
 		}
 
@@ -448,21 +448,21 @@ namespace Castle.MicroKernel.Registration
 		protected bool IsBasedOn(Type type, out Type[] baseTypes)
 		{
 		    var actuallyBasedOn = new List<Type>();
-            foreach (var based in basedOn)
+            foreach (var basedOn in bases)
 		    {
-                if (based.IsAssignableFrom(type))
+                if (basedOn.IsAssignableFrom(type))
 			    {
-                    actuallyBasedOn.Add(based);
+                    actuallyBasedOn.Add(basedOn);
 			    }
-			    else if (based.IsGenericTypeDefinition)
+			    else if (basedOn.IsGenericTypeDefinition)
 			    {
-				    if (based.IsInterface)
+				    if (basedOn.IsInterface)
 				    {
-					    if (IsBasedOnGenericInterface(type, based, out baseTypes))
+					    if (IsBasedOnGenericInterface(type, basedOn, out baseTypes))
                             actuallyBasedOn.AddRange(baseTypes);
 				    }
 				    
-                    if (IsBasedOnGenericClass(type, based, out baseTypes))
+                    if (IsBasedOnGenericClass(type, basedOn, out baseTypes))
                         actuallyBasedOn.AddRange(baseTypes);
 			    }
 		    }
