@@ -518,10 +518,48 @@ namespace CastleTests.Registration
 
             handlers = Kernel.GetHandlers(typeof(ICommon2));
             Assert.AreNotEqual(0, handlers.Length);
+        }        
+        
+        [Test]
+        public void RegisterAssemblyTypes_MultipleBasedOnWithThreeBases_RegisteredInContainer()
+        {
+            Kernel.Register(AllTypes
+                                .FromThisAssembly()
+                                .BasedOn(typeof(ICommon))
+                                .OrBasedOn(typeof(ICommon2))
+                                .OrBasedOn(typeof(IValidator<>))
+                                .WithServiceBase()
+                );
+
+            var handlers = Kernel.GetHandlers(typeof(ICommon));
+            Assert.AreNotEqual(0, handlers.Length);
+
+            handlers = Kernel.GetHandlers(typeof(ICommon2));
+            Assert.AreNotEqual(0, handlers.Length);
+
+            var validatorHandlers = Kernel.GetHandlers(typeof(IValidator<ICustomer>));
+            Assert.AreNotEqual(0, validatorHandlers.Length);
         }
 
-        [Test]
-        public void RegisterGenericTypes_MultipleBasedOnWithGenericDefinition_RegisteredInContainer()
+	    [Test]
+	    public void RegisterGenericTypes_MultipleBasedOnWithGenericDefinition_RegisteredInContainer()
+	    {
+	        Kernel.Register(AllTypes
+	                            .FromThisAssembly()
+	                            .BasedOn(typeof(IValidator<>))
+	                            .OrBasedOn(typeof(IRepository<>))
+	                            .WithService.Base()
+	            );
+
+	        var validatorHandlers = Kernel.GetHandlers(typeof(IValidator<ICustomer>));
+            Assert.AreNotEqual(0, validatorHandlers.Length);
+
+            var repositoryHandlers = Kernel.GetHandlers(typeof(IRepository<ICustomer>));
+            Assert.AreNotEqual(0, repositoryHandlers.Length);
+	    }	 
+
+	    [Test]
+        public void RegisterGenericTypes_MultipleBasedOnImplementingBothInterfaces_RegisteredWithBothAsServices()
         {
             Kernel.Register(AllTypes
                                 .FromThisAssembly()
@@ -530,21 +568,66 @@ namespace CastleTests.Registration
                                 .WithService.Base()
                 );
 
-            var handler = Kernel.GetHandlers(typeof(IValidator<ICustomer>)).Single(x => x.ComponentModel.Implementation == typeof(CustomerValidatorAndRepository));
+            var handler = Kernel
+                .GetHandlers(typeof(IValidator<ICustomer>))
+                .Single(x => x.ComponentModel.Implementation == typeof(CustomerValidatorAndRepository));
+
             var services = handler.ComponentModel.Services.ToList();
             Assert.Contains(typeof(IRepository<ICustomer>), services);
         }
 
-        [Test]
-        public void RegisterGenericTypes_MultipleBasedOnWithTheSameTypesTwice_RegisteredInContainer()
+	    [Test]
+        public void RegisterGenericTypes_MultipleBasedOnImplementingOneInterface_RegisteredWithOneService()
         {
             Kernel.Register(AllTypes
                                 .FromThisAssembly()
                                 .BasedOn(typeof(IValidator<>))
-                                .OrBasedOn(typeof(IValidator<>))
+                                .OrBasedOn(typeof(IRepository<>))
                                 .WithService.Base()
                 );
 
+            var handler = Kernel
+                .GetHandlers(typeof(IValidator<ICustomer>))
+                .Single(x => x.ComponentModel.Implementation == typeof(CustomerValidator));
+
+            var services = handler.ComponentModel.Services.ToArray();
+            Assert.AreEqual(1, services.Length);
+        }
+
+	    [Test]
+        public void RegisterGenericTypes_MultipleBasedOnWithTheSameTypesTwice_SelectedAsOneBase()
+        {
+            Type[] services = null;
+            Kernel.Register(AllTypes
+                                .FromThisAssembly()
+                                .BasedOn(typeof(IValidator<>))
+                                .OrBasedOn(typeof(IValidator<>))
+                                .WithService.Select((t, b) =>
+                                {
+                                    services = b;
+                                    return b;
+                                })
+                );
+
+            Assert.AreEqual(1, services.Length);
+        }
+
+        [Test]
+        public void RegisterGenericTypes_MultipleBasedOnWithServiceFromInterface_RegisteredInContainer()
+        {
+            Kernel.Register(AllTypes
+                                .FromThisAssembly()
+                                .BasedOn(typeof(IValidator<>))
+                                .OrBasedOn(typeof(IRepository<>))
+                                .WithService.FromInterface()
+                );
+
+            var handler = Kernel
+                .GetHandlers(typeof(IValidator<ICustomer>))
+                .Single(x => x.ComponentModel.Implementation == typeof(CustomerValidatorAndRepository));
+
+            var services = handler.ComponentModel.Services.ToList();
+            Assert.Contains(typeof(IRepository<ICustomer>), services);
         }
     }
 }
