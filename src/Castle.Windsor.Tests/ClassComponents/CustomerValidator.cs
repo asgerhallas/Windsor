@@ -27,7 +27,7 @@ namespace Castle.MicroKernel.Tests.ClassComponents
 		}
 	}
 
-    public class CustomerChainValidator<T> : IValidator<T>
+	public class CustomerChainValidator<T> : IValidator<T>
 		where T : CustomerChain1
 	{
 		/// <summary>
